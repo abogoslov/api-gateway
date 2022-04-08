@@ -1,0 +1,93 @@
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "https://our.web.client, https://our.web.client.too"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+      routes:
+        - id: new_user_route
+          uri: http://localhost:8081
+          predicates:
+            - Header=X-Request-Id, ^[A-Za-z0-9]{8}-([A-Za-z0-9]{4}-){3}[A-Za-z0-9]{12}$
+            - Path=/api/user
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: INTERNAL_SERVER_ERROR
+                methods: GET,POST,PUT
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+            - name: RequestSize
+              args:
+                maxSize: 500000
+        - id: auth_route
+          uri: http://localhost:8081
+          predicates:
+            - Header=X-Request-Id, ^[A-Za-z0-9]{8}-([A-Za-z0-9]{4}-){3}[A-Za-z0-9]{12}$
+            - Path=/api/user/authenticate
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: INTERNAL_SERVER_ERROR
+                methods: GET,POST,PUT
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+            - name: RequestSize
+              args:
+                maxSize: 500000
+        - id: new_token_pair_route
+          uri: http://localhost:8081
+          predicates:
+            - Header=X-Request-Id, ^[A-Za-z0-9]{8}-([A-Za-z0-9]{4}-){3}[A-Za-z0-9]{12}$
+            - Path=/api/user/refreshToken
+            - JwtRefresh=user-api, Pm8EV6Hy5RKFK4EEACIDAwQusD7g, 60
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: INTERNAL_SERVER_ERROR
+                methods: GET,POST,PUT
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+            - name: RequestSize
+              args:
+                maxSize: 500000
+        - id: order_route
+          uri: http://localhost:8082
+          predicates:
+            - Header=X-Request-Id, ^[A-Za-z0-9]{8}-([A-Za-z0-9]{4}-){3}[A-Za-z0-9]{12}$
+            - Path=/api/order**
+            - JwtAccess=user-api, Pm8EV6Hy5RKFK4EEACIDAwQusD7g, 15
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: INTERNAL_SERVER_ERROR
+                methods: GET,POST,PUT
+                backoff:
+                  firstBackoff: 10ms
+                  maxBackoff: 50ms
+                  factor: 2
+                  basedOnPreviousValue: false
+            - name: RequestSize
+              args:
+                maxSize: 500000
+            - name: AddRoleRequestHeader
+              args:
+                headerName: x-api-role
